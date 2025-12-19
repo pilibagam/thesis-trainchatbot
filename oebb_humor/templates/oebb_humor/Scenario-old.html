@@ -1,0 +1,448 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block title %}Chat with ÖBB Assist{% endblock %}
+
+{% block styles %}
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
+    crossorigin="anonymous"
+/>
+<style>
+    .chat-wrapper {
+        max-width: 720px;
+        width: 100%;
+        margin: 0 auto;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 16px;
+        background: #fafafa;
+    }
+    .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    .chat-logo {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #d6001d;
+    }
+    .scenario-text {
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    #chat_messages {
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+    .msg-row {
+        display: flex;
+        margin-top: 8px;
+    }
+    .msg-bot {
+        align-items: flex-start;
+    }
+    .msg-user {
+        justify-content: flex-end;
+    }
+    .bubble {
+        padding: 8px 10px;
+        border-radius: 12px;
+        font-size: 0.92rem;
+        max-width: 80%;
+        line-height: 1.4;
+    }
+    .bubble-bot {
+        background: #ffffff;
+        border: 1px solid #e2e2e2;
+    }
+    .bubble-user {
+        background: #d6001d;
+        color: #fff;
+    }
+    .typing-indicator {
+        display: inline-flex;
+        gap: 4px;
+        margin: 6px 0 0 4px;
+    }
+    .typing-indicator span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ccc;
+        animation: blink 1s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+        0%, 80%, 100% { opacity: 0.2; }
+        40% { opacity: 1; }
+    }
+    #buttonContainer {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .chatButton {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid #d6001d;
+        background: #fff;
+        color: #d6001d;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+    .chatButton:hover {
+        background: #d6001d;
+        color: #fff;
+    }
+    #nextPageButton {
+        margin-top: 16px;
+    }
+
+    @media (max-width: 576px) {
+        .chat-wrapper {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            padding: 12px;
+        }
+        .chat-header {
+            font-size: 0.95rem;
+        }
+        .bubble {
+            font-size: 0.9rem;
+            max-width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const humor = "{{ humor_key }}";          // affiliative / self_defeating / neutral
+        const severity = "{{ severity_key }}";    // low / high
+
+        const chatMessages = document.getElementById('chat_messages');
+        const buttonContainer = document.getElementById('buttonContainer');
+        const nextButton = document.getElementById('nextPageButton');
+        const chatLogInput = document.getElementById('id_chat_log');
+
+        let chatLog = [];
+        let timeBase = Date.now();
+        let conversationFinished = false;
+
+        const texts = buildMessages();
+
+        function log(sender, text) {
+            const ts = (Date.now() - timeBase) / 1000;
+            chatLog.push({sender: sender, text: text, t: ts});
+            chatLogInput.value = JSON.stringify(chatLog);
+        }
+
+        function scrollDown() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTyping() {
+            const el = document.createElement('div');
+            el.className = 'typing-indicator';
+            el.innerHTML = '<span></span><span></span><span></span>';
+            el.id = 'typing';
+            chatMessages.appendChild(el);
+            scrollDown();
+        }
+
+        function hideTyping() {
+            const el = document.getElementById('typing');
+            if (el) el.remove();
+        }
+
+        function addBotMessage(text, delay = 900, cb = null) {
+            showTyping();
+            setTimeout(() => {
+                hideTyping();
+                const row = document.createElement('div');
+                row.className = 'msg-row msg-bot';
+                row.innerHTML = '<div class="bubble bubble-bot">' + text + '</div>';
+                chatMessages.appendChild(row);
+                log('bot', text);
+                scrollDown();
+                if (cb) cb();
+            }, delay);
+        }
+
+        function addUserMessage(text) {
+            const row = document.createElement('div');
+            row.className = 'msg-row msg-user';
+            row.innerHTML = '<div class="bubble bubble-user">' + text + '</div>';
+            chatMessages.appendChild(row);
+            log('user', text);
+            scrollDown();
+        }
+
+        function setButtons(options) {
+            buttonContainer.innerHTML = '';
+            options.forEach(opt => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'chatButton';
+                b.textContent = opt.label;
+                b.onclick = () => handleChoice(opt);
+                buttonContainer.appendChild(b);
+            });
+        }
+
+        function clearButtons() {
+            buttonContainer.innerHTML = '';
+        }
+
+        function finishConversation() {
+            if (conversationFinished) return;
+            conversationFinished = true;
+            clearButtons();
+            nextButton.disabled = false;
+        }
+
+        // --- Conversation entry point ---
+
+        addBotMessage(texts.initial, 400, () => {
+            if (severity === 'low') {
+                setButtons([
+                    {label: "My reserved seat is taken. Can you help me?", step: 'report_issue'}
+                ]);
+            } else {
+                setButtons([
+                    {label: "I just got a message that my train was cancelled.", step: 'report_issue'}
+                ]);
+            }
+        });
+
+        function handleChoice(opt) {
+            addUserMessage(opt.label);
+
+            // First user message: describe the problem
+            if (opt.step === 'report_issue') {
+
+                if (severity === 'low') {
+                    // Seat double booking – richer options within the same train
+                    addBotMessage(texts.problem_intro, 700, () => {
+                        addBotMessage(texts.seat_options_intro, 900, () => {
+                            setButtons([
+                                {label: texts.label_standard, step: 'choose_standard'},
+                                {label: texts.label_family,   step: 'choose_family'},
+                                {label: texts.label_first,    step: 'choose_first'}
+                            ]);
+                        });
+                    });
+
+                } else {
+                    // High severity: keep original simple flow
+                    addBotMessage(texts.problem_intro, 700, () => {
+                        addBotMessage(texts.solution, 900, () => {
+                            setButtons([
+                                {label: "Okay, I will follow this solution.", step: 'accept_solution_positive'},
+                                {label: "I am not satisfied with this.",      step: 'accept_solution_negative'}
+                            ]);
+                        });
+                    });
+                }
+
+            // Low-severity seat-option choices
+            } else if (opt.step === 'choose_standard') {
+                addBotMessage(texts.confirm_standard, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",          step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.",    step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'choose_family') {
+                addBotMessage(texts.confirm_family, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",          step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.",    step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'choose_first') {
+                addBotMessage(texts.confirm_first, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",          step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.",    step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            // Final evaluations (both severities)
+            } else if (opt.step === 'accept_solution_positive') {
+                addBotMessage(texts.closing_positive, 800, () => {
+                    finishConversation();
+                });
+
+            } else if (opt.step === 'accept_solution_negative') {
+                addBotMessage(texts.closing_negative, 800, () => {
+                    finishConversation();
+                });
+            }
+        }
+
+        // --- Texts for all conditions ---
+
+        function buildMessages() {
+            let initial,
+                problem_intro,
+                solution,
+                closing_positive,
+                closing_negative,
+                seat_options_intro = "",
+                confirm_standard   = "",
+                confirm_family     = "",
+                confirm_first      = "",
+                label_standard     = "Standard carriage (no extra cost)",
+                label_family       = "Family coach (livelier, free)",
+                label_first        = "First class (paid upgrade)";
+
+            if (humor === 'affiliative') {
+                initial = "Hi, I'm ÖBB Assist, your digital travel buddy. What’s going on? 🙂";
+
+                if (severity === 'low') {
+                    problem_intro =
+                        "Oh no, seat mix-ups like this are really frustrating, especially when your seat was reserved.";
+                    seat_options_intro =
+                        "We’ll keep you on this train and I can move your reservation. Here are a few options, depending on what you prefer:";
+                    confirm_standard =
+                        "Great, I’ve found a free seat in a nearby standard carriage. You’ll stay on this train and arrive at the same time. Your new seat will be added to your ticket.";
+                    confirm_family =
+                        "Thanks, I’ve moved your reservation to the family coach. It can be a bit livelier, but you’ll have a confirmed seat for the rest of your trip. Your new seat will be added to your ticket.";
+                    confirm_first =
+                        "Nice choice – I’ve found a free seat in first class on this train. An upgrade fee will be added to your ticket, and your new seat will be added to your reservation.";
+                    closing_positive =
+                        "All set! I’m glad we found something that works for you. If anything else comes up on your journey, I’m here to help. 🙂";
+                    closing_negative =
+                        "I understand this still doesn’t feel ideal, and I’m really sorry for the inconvenience. If you wish, you can later look into compensation options or contact our staff on board.";
+                } else {
+                    problem_intro =
+                        "Oh no, travel disruptions like this are really frustrating. I’m sorry your train was cancelled.";
+                    solution =
+                        "I’ll rebook you on the next available connection, which leaves in about one hour. You’ll arrive in Vienna around one hour later than planned.";
+                    closing_positive =
+                        "Your new booking is confirmed. Thanks for staying patient — I’m here if you need anything else.";
+                    closing_negative =
+                        "I understand your frustration — disruptions like this can really impact your plans. If it helps, I can guide you to compensation options or provide more information.";
+                }
+
+            } else if (humor === 'self_defeating') {
+                initial = "Hi, I’m ÖBB Assist. I promise I’m usually more organized than the trains. 🤖";
+
+                if (severity === 'low') {
+                    problem_intro =
+                        "Looks like my circuits didn’t see this seat clash coming. That’s on me.";
+                    seat_options_intro =
+                        "The good news: we’ll keep you on this train and I can move your reservation. You can choose what suits you best:";
+                    confirm_standard =
+                        "Done. I’ve moved you to a free seat in a nearby standard carriage. Same train, same arrival time — at least one thing is now sorted properly.";
+                    confirm_family =
+                        "Got it. I’ve moved your reservation to the family coach. It’s a bit livelier, but you’ll have a guaranteed seat for the ride.";
+                    confirm_first =
+                        "Upgrade time! I’ve found you a seat in first class on this train. An upgrade fee will be added to your ticket — hopefully the extra comfort makes up for my earlier chaos. 🤖";
+                    closing_positive =
+                        "Everything’s updated. I’m happy we could rescue this situation a bit. If I mess up again, you’re officially allowed to complain about me. 😉";
+                    closing_negative =
+                        "Totally fair — this hasn’t been my finest robot moment. I’ll keep learning from it. You can also check with staff or look into compensation options after your trip.";
+                } else {
+                    problem_intro =
+                        "Wow, my timing for glitches is… spectacularly bad. I’m really sorry your train got cancelled.";
+                    solution =
+                        "I’ll rebook you on the next train leaving in about one hour. You’ll get to Vienna later than planned, but at least you’ll still get there.";
+                    closing_positive =
+                        "Your new booking is confirmed. I know this delay isn’t great, but I’m glad we found a way to keep you on track.";
+                    closing_negative =
+                        "I completely understand if you’re not happy with this. This delay really disrupts your plans. If you want, I can show you where to request compensation or find more detailed information.";
+                }
+
+            } else {
+                // neutral
+                initial = "Welcome to ÖBB Assist. How can I help you?";
+
+                if (severity === 'low') {
+                    problem_intro =
+                        "Thank you for the information about your reserved seat.";
+                    seat_options_intro =
+                        "We will keep you on this train and can move your reservation to another available seat. Please choose one of the following options:";
+                    confirm_standard =
+                        "Your reservation has been moved to a free seat in a nearby standard carriage. You will remain on this train and arrive at the scheduled time. Your new seat will be added to your ticket.";
+                    confirm_family =
+                        "Your reservation has been moved to a seat in the family coach. This area can be livelier, but you will have a confirmed seat for the rest of your journey. Your new seat will be added to your ticket.";
+                    confirm_first =
+                        "Your reservation has been moved to a seat in first class on this train. An upgrade fee will be charged for this change. Your new seat will be added to your ticket.";
+                    closing_positive =
+                        "Your seat has been updated. If you need further assistance during your trip, you can contact us again.";
+                    closing_negative =
+                        "We are sorry that this solution does not fully meet your expectations. You may also contact onboard staff or check compensation options after your trip.";
+                } else {
+                    problem_intro =
+                        "Thank you for the information about the train cancellation.";
+                    solution =
+                        "I will rebook you on the next available connection, which departs in about one hour. You will arrive in Vienna later than originally planned.";
+                    closing_positive =
+                        "Your new booking has been completed. We apologize for the delay and any inconvenience it may cause.";
+                    closing_negative =
+                        "We understand that this disruption may be very inconvenient. If this solution does not meet your needs, further information on compensation and alternatives is available after your trip.";
+                }
+            }
+
+            return {
+                initial,
+                problem_intro,
+                solution,
+                closing_positive,
+                closing_negative,
+                seat_options_intro,
+                confirm_standard,
+                confirm_family,
+                confirm_first,
+                label_standard,
+                label_family,
+                label_first
+            };
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+
+<div class="chat-wrapper">
+    <div class="chat-header">
+        <div class="chat-logo"></div>
+        {{ header_title }}
+    </div>
+
+    <p class="scenario-text">
+        {{ scenario_description }}
+    </p>
+
+    <div id="chat_messages"></div>
+
+    <div id="buttonContainer"></div>
+
+    <input type="hidden" name="chat_log" id="id_chat_log"/>
+
+    <button id="nextPageButton" class="btn btn-primary" type="submit" disabled>
+        Next
+    </button>
+</div>
+
+{% endblock %}

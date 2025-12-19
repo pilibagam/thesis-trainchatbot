@@ -1,0 +1,601 @@
+{% extends "global/Page.html" %}
+{% load otree static %}
+
+{% block title %}Chat with ÖBB Assist{% endblock %}
+
+{% block styles %}
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
+    crossorigin="anonymous"
+/>
+<style>
+    .chat-wrapper {
+        max-width: 720px;
+        width: 100%;
+        margin: 0 auto;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 16px;
+        background: #fafafa;
+    }
+    .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 10px;
+    }
+    .chat-logo {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #d6001d;
+    }
+    .chat-header-text {
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-header-title {
+        font-weight: 600;
+        line-height: 1.2;
+    }
+    .chat-reservation {
+        font-size: 0.82rem;
+        color: #666;
+        margin-top: 2px;
+    }
+    .scenario-text {
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    #chat_messages {
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+    .msg-row {
+        display: flex;
+        margin-top: 8px;
+    }
+    .msg-bot {
+        align-items: flex-start;
+    }
+    .msg-user {
+        justify-content: flex-end;
+    }
+    .bubble {
+        padding: 8px 10px;
+        border-radius: 12px;
+        font-size: 0.92rem;
+        max-width: 80%;
+        line-height: 1.4;
+    }
+    .bubble-bot {
+        background: #ffffff;
+        border: 1px solid #e2e2e2;
+    }
+    .bubble-user {
+        background: #d6001d;
+        color: #fff;
+    }
+    .typing-indicator {
+        display: inline-flex;
+        gap: 4px;
+        margin: 6px 0 0 4px;
+    }
+    .typing-indicator span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ccc;
+        animation: blink 1s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+        0%, 80%, 100% { opacity: 0.2; }
+        40% { opacity: 1; }
+    }
+    #buttonContainer {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .chatButton {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid #d6001d;
+        background: #fff;
+        color: #d6001d;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+    .chatButton:hover {
+        background: #d6001d;
+        color: #fff;
+    }
+    #nextPageButton {
+        margin-top: 16px;
+    }
+
+    @media (max-width: 576px) {
+        .chat-wrapper {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            padding: 12px;
+        }
+        .chat-header {
+            font-size: 0.95rem;
+        }
+        .bubble {
+            font-size: 0.9rem;
+            max-width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const humor = "{{ humor_key }}";          // affiliative / self_defeating / neutral
+        const severity = "{{ severity_key }}";    // low / high
+
+        const chatMessages = document.getElementById('chat_messages');
+        const buttonContainer = document.getElementById('buttonContainer');
+        const nextButton = document.getElementById('nextPageButton');
+        const chatLogInput = document.getElementById('id_chat_log');
+
+        let chatLog = [];
+        let timeBase = Date.now();
+        let conversationFinished = false;
+
+        const texts = buildMessages();
+
+        function log(sender, text) {
+            const ts = (Date.now() - timeBase) / 1000;
+            chatLog.push({sender: sender, text: text, t: ts});
+            chatLogInput.value = JSON.stringify(chatLog);
+        }
+
+        function scrollDown() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTyping() {
+            const el = document.createElement('div');
+            el.className = 'typing-indicator';
+            el.innerHTML = '<span></span><span></span><span></span>';
+            el.id = 'typing';
+            chatMessages.appendChild(el);
+            scrollDown();
+        }
+
+        function hideTyping() {
+            const el = document.getElementById('typing');
+            if (el) el.remove();
+        }
+
+        function addBotMessage(text, delay = 900, cb = null) {
+            showTyping();
+            setTimeout(() => {
+                hideTyping();
+                const row = document.createElement('div');
+                row.className = 'msg-row msg-bot';
+                row.innerHTML = '<div class="bubble bubble-bot">' + text + '</div>';
+                chatMessages.appendChild(row);
+                log('bot', text);
+                scrollDown();
+                if (cb) cb();
+            }, delay);
+        }
+
+        function addUserMessage(text) {
+            const row = document.createElement('div');
+            row.className = 'msg-row msg-user';
+            row.innerHTML = '<div class="bubble bubble-user">' + text + '</div>';
+            chatMessages.appendChild(row);
+            log('user', text);
+            scrollDown();
+        }
+
+        function setButtons(options) {
+            buttonContainer.innerHTML = '';
+            options.forEach(opt => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'chatButton';
+                b.textContent = opt.label;
+                b.onclick = () => handleChoice(opt);
+                buttonContainer.appendChild(b);
+            });
+        }
+
+        function clearButtons() {
+            buttonContainer.innerHTML = '';
+        }
+
+        function finishConversation() {
+            if (conversationFinished) return;
+            conversationFinished = true;
+            clearButtons();
+            nextButton.disabled = false;
+        }
+
+        // --- Conversation entry point ---
+
+        addBotMessage(texts.initial, 400, () => {
+            if (severity === 'low') {
+                setButtons([
+                    {label: "My reserved seat is taken. Can you help me?", step: 'report_issue'}
+                ]);
+            } else {
+                setButtons([
+                    {label: "I just got a message that my train was cancelled.", step: 'report_issue'}
+                ]);
+            }
+        });
+
+        function handleChoice(opt) {
+            addUserMessage(opt.label);
+
+            if (opt.step === 'report_issue') {
+
+                if (severity === 'low') {
+                    // Seat double booking – options: family coach / first class / stay flexible
+                    addBotMessage(texts.problem_intro, 700, () => {
+                        addBotMessage(texts.seat_options_intro, 900, () => {
+                            setButtons([
+                                {label: texts.label_family,      step: 'choose_family'},
+                                {label: texts.label_first,       step: 'choose_first'},
+                                {label: texts.label_self_manage, step: 'choose_self_manage'}
+                            ]);
+                        });
+                    });
+
+                } else {
+                    // High severity: offer rebooking options
+                    addBotMessage(texts.problem_intro, 700, () => {
+                        addBotMessage(texts.rebook_intro, 900, () => {
+                            setButtons([
+                                {label: texts.label_14,                 step: 'choose_14'},
+                                {label: texts.label_17,                 step: 'choose_17'},
+                                {label: texts.label_self_manage_high,   step: 'choose_self_manage_high'}
+                            ]);
+                        });
+                    });
+                }
+
+            // Low-severity: choose coach, then seat preference
+            } else if (opt.step === 'choose_family') {
+                addBotMessage(texts.seat_pref_intro, 700, () => {
+                    setButtons([
+                        {label: texts.label_window, step: 'family_window'},
+                        {label: texts.label_aisle,  step: 'family_aisle'}
+                    ]);
+                });
+
+            } else if (opt.step === 'choose_first') {
+                addBotMessage(texts.seat_pref_intro, 700, () => {
+                    setButtons([
+                        {label: texts.label_window, step: 'first_window'},
+                        {label: texts.label_aisle,  step: 'first_aisle'}
+                    ]);
+                });
+
+            } else if (opt.step === 'family_window') {
+                addBotMessage(texts.confirm_family_window, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'family_aisle') {
+                addBotMessage(texts.confirm_family_aisle, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'first_window') {
+                addBotMessage(texts.confirm_first_window, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'first_aisle') {
+                addBotMessage(texts.confirm_first_aisle, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'choose_self_manage') {
+                addBotMessage(texts.confirm_self_manage, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            // High-severity choices
+            } else if (opt.step === 'choose_14') {
+                addBotMessage(texts.confirm_14, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'choose_17') {
+                addBotMessage(texts.confirm_17, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            } else if (opt.step === 'choose_self_manage_high') {
+                addBotMessage(texts.confirm_self_manage_high, 800, () => {
+                    setButtons([
+                        {label: "That works for me, thank you.",       step: 'accept_solution_positive'},
+                        {label: "I’m still not very happy with this.", step: 'accept_solution_negative'}
+                    ]);
+                });
+
+            // Final evaluations (both severities)
+            } else if (opt.step === 'accept_solution_positive') {
+                addBotMessage(texts.closing_positive, 800, () => {
+                    finishConversation();
+                });
+
+            } else if (opt.step === 'accept_solution_negative') {
+                addBotMessage(texts.closing_negative, 800, () => {
+                    finishConversation();
+                });
+            }
+        }
+
+        // --- Texts for all conditions ---
+
+        function buildMessages() {
+            let initial,
+                problem_intro,
+                rebook_intro,
+                closing_positive,
+                closing_negative,
+                seat_options_intro = "",
+                seat_pref_intro = "",
+                confirm_family_window = "",
+                confirm_family_aisle  = "",
+                confirm_first_window  = "",
+                confirm_first_aisle   = "",
+                confirm_self_manage   = "",
+                confirm_14            = "",
+                confirm_17            = "",
+                confirm_self_manage_high = "",
+                label_family          = "Family coach (free)",
+                label_first           = "First class (paid upgrade)",
+                label_self_manage     = "I prefer to look for a free seat myself",
+                label_window          = "Window seat",
+                label_aisle           = "Aisle seat",
+                label_14              = "Rebook to 14:00 (arrive ~18:00)",
+                label_17              = "Rebook to 17:00 (arrive ~19:30)",
+                label_self_manage_high = "I prefer to arrange it myself";
+
+            if (humor === 'affiliative') {
+                initial = "Hi, I'm ÖBB Assist. I can see your reservation. How can I help? 🙂";
+
+                if (severity === 'low') {
+                    problem_intro =
+                        "Oh no – seat mix-ups are annoying, especially when you reserved. I see your booking, let’s fix this and keep you on this train. 😊";
+
+                    seat_options_intro =
+                        "I can move your reservation to another seat on this train. These options are available:";
+
+                    seat_pref_intro =
+                        "Do you prefer a window or an aisle seat? I’ll try to match that.";
+
+                    confirm_family_window =
+                        "All right, you now have a window seat in the family coach: <strong>carriage 23, seat 18A</strong>. It’s a bit livelier, but your seat is confirmed for the rest of the trip. 🚆";
+                    confirm_family_aisle =
+                        "All right, you now have an aisle seat in the family coach: <strong>carriage 23, seat 18C</strong>. It’s a bit livelier, but your seat is confirmed for the rest of the trip. 🚆";
+
+                    confirm_first_window =
+                        "Great choice – I’ve booked a window seat in first class for you: <strong>carriage 31, seat 4A</strong>. More space and a calmer atmosphere. An upgrade fee will be added to your ticket. ✨";
+                    confirm_first_aisle =
+                        "Great choice – I’ve booked an aisle seat in first class for you: <strong>carriage 31, seat 4C</strong>. More space and a calmer atmosphere. An upgrade fee will be added to your ticket. ✨";
+
+                    confirm_self_manage =
+                        "No problem. I’ll leave your reservation as it is. On board, you can look for a free seat, and staff can help you find a good spot if needed.";
+
+                    closing_positive =
+                        "Perfect, your solution is set and you stay on this train. If anything else comes up, just ask me. 😊";
+                    closing_negative =
+                        "I understand this still isn’t ideal, and I’m sorry for the inconvenience. If you’d like, you can later check compensation options or talk to our staff.";
+
+                } else {
+                    problem_intro =
+                        "I’m really sorry – your train from Budapest to Vienna at <strong>13:00</strong> has been cancelled.";
+                    rebook_intro =
+                        "I can rebook you today. You can take the <strong>14:00</strong> train (about <strong>4 hours</strong>, arrival around <strong>18:00</strong>) or the <strong>17:00</strong> train (about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>). Or you can arrange it yourself.";
+
+                    confirm_14 =
+                        "Great, I’ve rebooked you on the <strong>14:00</strong> train from Budapest to Vienna. The journey takes about <strong>4 hours</strong>, so you’ll arrive around <strong>18:00</strong>. Your new connection is now in your ticket. 🚆";
+                    confirm_17 =
+                        "Okay, you’re now booked on the <strong>17:00</strong> train. The ride is shorter, about <strong>2.5 hours</strong>, so you’ll arrive in Vienna around <strong>19:30</strong>. Your new connection is in your ticket. ✨";
+
+                    confirm_self_manage_high =
+                        "Of course. I won’t change your booking. You can use the ÖBB app, the ticket counter or staff at the station to choose the option that fits you best.";
+
+                    closing_positive =
+                        "Your new plan is set. I’m glad we found something that works for you. If you need anything else before or during your trip, just let me know. 🙂";
+                    closing_negative =
+                        "Thank you for letting me know. I understand this situation is very inconvenient, and I’m really sorry. If you want, you can later check compensation options or talk to our staff about alternatives.";
+                }
+
+            } else if (humor === 'self_defeating') {
+                initial = "Hi, I’m ÖBB Assist. I’ve opened your reservation and I’ll try not to mess this up. 🤖";
+
+                if (severity === 'low') {
+                    problem_intro =
+                        "Looks like my circuits missed this seat clash. That’s on me – but I see your reservation and we’ll keep you on this train.";
+                    seat_options_intro =
+                        "I can move your reservation to another seat on this train. Which option works best for you? I’ll try to get it right this time. 🤖";
+
+                    seat_pref_intro =
+                        "Quick question: window or aisle? I’ll do my best not to put you in the wrong spot. 🤖";
+
+                    confirm_family_window =
+                        "Done – you now have a window seat in the family coach: <strong>carriage 23, seat 18A</strong>. It can be a bit noisy, but at least you have a guaranteed seat now. Your new seat is in your ticket.";
+                    confirm_family_aisle =
+                        "Done – you now have an aisle seat in the family coach: <strong>carriage 23, seat 18C</strong>. It can be a bit noisy, but at least you have a guaranteed seat now. Your new seat is in your ticket.";
+
+                    confirm_first_window =
+                        "Upgrade time! I’ve found you a window seat in first class: <strong>carriage 31, seat 4A</strong>. An upgrade fee will be added – hopefully the comfort makes up a bit for my earlier chaos. 🤖";
+                    confirm_first_aisle =
+                        "Upgrade time! I’ve found you an aisle seat in first class: <strong>carriage 31, seat 4C</strong>. An upgrade fee will be added – hopefully the comfort makes up a bit for my earlier chaos. 🤖";
+
+                    confirm_self_manage =
+                        "Got it, you prefer to stay flexible – probably wise given my track record. I’ll leave your reservation as it is. You can look for a free seat, check the app or displays, and staff can help if needed.";
+
+                    closing_positive =
+                        "All updated. I’m glad we could rescue this a bit and keep you on this train. If I mess up again, you’re officially allowed to complain about me. 😉";
+                    closing_negative =
+                        "Totally fair – this hasn’t been my best robot moment. You can also talk to staff or look into compensation options after your trip.";
+
+                } else {
+                    problem_intro =
+                        "Yikes, that cancellation is really bad timing. I’m sorry your train at <strong>13:00</strong> got cancelled.";
+                    rebook_intro =
+                        "I can rebook you. There’s a <strong>14:00</strong> train (about <strong>4 hours</strong>, arrival around <strong>18:00</strong>) and a <strong>17:00</strong> train (about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>). Or you can arrange it yourself if you trust humans more than me. 🤖";
+
+                    confirm_14 =
+                        "All right, you’re now on the <strong>14:00</strong> train. It takes about <strong>4 hours</strong>, so you should reach Vienna around <strong>18:00</strong>. At least this one should show up. 🤖";
+                    confirm_17 =
+                        "Done – you’re booked on the <strong>17:00</strong> train. The ride is about <strong>2.5 hours</strong>, so you’ll arrive around <strong>19:30</strong>. More waiting now, but a shorter ride later. 🤖";
+
+                    confirm_self_manage_high =
+                        "Got it – I’ll stay out of the rebooking drama. I won’t change your ticket. You can use the ÖBB app, the ticket counter or staff at the station to pick the option that suits you best.";
+
+                    closing_positive =
+                        "All set. I’m relieved we found a way to keep your trip going. If I cause more trouble, you’re allowed to blame the robot. 😉";
+                    closing_negative =
+                        "That’s completely understandable. This disruption is really frustrating. You can also talk to staff or look into compensation later if you feel this is not acceptable.";
+                }
+
+            } else {
+                // neutral
+                initial = "Welcome to ÖBB Assist. I can see your reservation. How can I help you?";
+
+                if (severity === 'low') {
+                    problem_intro =
+                        "Thank you for the information about your reserved seat.";
+                    seat_options_intro =
+                        "I can move your seat reservation to another coach on this train. Please choose one of the following options:";
+
+                    seat_pref_intro =
+                        "Before I confirm the new reservation, please indicate whether you prefer a window seat or an aisle seat.";
+
+                    confirm_family_window =
+                        "Your reservation has been moved to a window seat in the family coach: <strong>carriage 23, seat 18A</strong>. This area can be livelier, but you will have a confirmed seat for the rest of your journey. Your new seat has been added to your ticket.";
+                    confirm_family_aisle =
+                        "Your reservation has been moved to an aisle seat in the family coach: <strong>carriage 23, seat 18C</strong>. This area can be livelier, but you will have a confirmed seat for the rest of your journey. Your new seat has been added to your ticket.";
+
+                    confirm_first_window =
+                        "Your reservation has been moved to a window seat in first class: <strong>carriage 31, seat 4A</strong>. An upgrade fee will be charged, and your new seat has been added to your ticket.";
+                    confirm_first_aisle =
+                        "Your reservation has been moved to an aisle seat in first class: <strong>carriage 31, seat 4C</strong>. An upgrade fee will be charged, and your new seat has been added to your ticket.";
+
+                    confirm_self_manage =
+                        "In this case I will not change your reservation. You can board this train and choose from the free seats available. The ÖBB app and seat displays show which seats are unoccupied. Staff can assist you if you need help finding a place.";
+                    closing_positive =
+                        "Your seating situation has been updated. We are pleased that a suitable solution was found for you on this train.";
+                    closing_negative =
+                        "We are sorry that this solution does not fully meet your expectations. You may also contact onboard staff or check compensation options after your trip.";
+
+                } else {
+                    problem_intro =
+                        "Thank you for the information about the train cancellation. Your train from Budapest to Vienna at <strong>13:00</strong> has been cancelled.";
+                    rebook_intro =
+                        "I can rebook you on another connection today. You may choose the <strong>14:00</strong> train (about <strong>4 hours</strong>, arrival around <strong>18:00</strong>) or the <strong>17:00</strong> train (about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>). You can also arrange the rebooking yourself.";
+
+                    confirm_14 =
+                        "Your booking has been changed to the <strong>14:00</strong> train from Budapest to Vienna. The trip takes approximately <strong>4 hours</strong>, with arrival around <strong>18:00</strong>. Your new connection is now stored in your ticket.";
+                    confirm_17 =
+                        "Your booking has been changed to the <strong>17:00</strong> train. The journey takes about <strong>2.5 hours</strong>, with arrival around <strong>19:30</strong>. Your new connection is now stored in your ticket.";
+
+                    confirm_self_manage_high =
+                        "In this case I will not change your booking. You can arrange your new connection using the ÖBB app, the ticket counter at the station or assistance from staff.";
+
+                    closing_positive =
+                        "Your new booking is confirmed. We apologise again for the disruption and wish you a smooth onward journey.";
+                    closing_negative =
+                        "We understand that this situation is inconvenient. If this solution does not meet your needs, you may also consider compensation options or seek further assistance from staff.";
+                }
+            }
+
+            return {
+                initial,
+                problem_intro,
+                rebook_intro,
+                closing_positive,
+                closing_negative,
+                seat_options_intro,
+                seat_pref_intro,
+                confirm_family_window,
+                confirm_family_aisle,
+                confirm_first_window,
+                confirm_first_aisle,
+                confirm_self_manage,
+                confirm_14,
+                confirm_17,
+                confirm_self_manage_high,
+                label_family,
+                label_first,
+                label_self_manage,
+                label_window,
+                label_aisle,
+                label_14,
+                label_17,
+                label_self_manage_high
+            };
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+
+<div class="chat-wrapper">
+    <div class="chat-header">
+        <div class="chat-logo"></div>
+        <div class="chat-header-text">
+            <div class="chat-header-title">{{ header_title }}</div>
+            <div class="chat-reservation">Reservation: 3LT03</div>
+        </div>
+    </div>
+
+    <div id="chat_messages"></div>
+
+    <div id="buttonContainer"></div>
+
+    <input type="hidden" name="chat_log" id="id_chat_log"/>
+
+    <button id="nextPageButton" class="btn btn-primary" type="submit" disabled>
+        Next
+    </button>
+</div>
+
+{% endblock %}

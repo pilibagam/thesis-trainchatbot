@@ -1,0 +1,75 @@
+{% extends "global/Page.html" %}
+
+{% block styles %}
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
+    crossorigin="anonymous"
+/>
+<style>
+    .page-wrapper {
+        max-width: 720px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container page-wrapper">
+    <h3 class="mb-4">Debriefing</h3>
+
+    <p class="mb-3">
+        Thank you for participating in this study. Our research explores how different
+        <strong>chatbot response styles</strong>—with and without humor—shape reactions to
+        <strong>service disruptions</strong> in public rail transport.
+    </p>
+
+    <p class="mb-3">
+        We compare various types of humor and different levels of disruption severity to understand
+        how people feel, evaluate, and respond to the chatbot. Your answers help us learn how digital
+        assistants can communicate more effectively in stressful travel situations.
+    </p>
+
+    <p class="mb-4">
+        If you do not wish to take part in anything else, you may now close this window.
+    </p>
+
+    <hr class="my-4">
+
+    <h3 class="mb-4">Enter our Giveaway 🎁 (optional)</h3>
+
+    <div class="p-3 bg-light border rounded mb-4">
+
+        <p class="mb-3">
+            As a small thank you, we are raffling a
+            <strong>50 EUR Amazon gift card</strong> among study participants.
+        </p>
+
+        <p class="mb-3">
+            If you would like to enter the giveaway, please provide your email address below.
+            Participation is <strong>completely optional</strong>, and each person is counted
+            only once in the raffle. If you prefer not to take part, you can simply close this window.
+        </p>
+
+        <!-- Email field between description and button -->
+        <div class="mb-3">
+            <label for="id_raffle_email" class="form-label fw-semibold">
+                Email address (optional)
+            </label>
+            {{ form.raffle_email }}
+            <div class="form-text">
+                We will only use this email address to contact you in case you win the giveaway.
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end">
+            <button class="btn btn-primary" type="submit">
+                Participate in 50&nbsp;EUR giveaway
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
