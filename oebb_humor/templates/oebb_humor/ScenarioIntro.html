@@ -57,7 +57,7 @@
 
 <div class="alert alert-warning attention-box" role="alert" aria-live="polite">
     <div class="attention-title">Important — please read carefully</div>
-    <div class="attention-text">{{ instructions|linebreaksbr }}</div>
+    <div class="attention-text">{{ instructions|default:""|escape|linebreaks }}</div>
 </div>
 
     
