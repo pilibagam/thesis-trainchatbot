@@ -319,13 +319,9 @@ class ScenarioIntro(Page):
         context = Scenario.vars_for_template(player)
         context.update(
             instructions=(
-                "IMPORTANT — Please read carefully.\n\n"
-                "On the next screen, you will interact with the ÖBB service chatbot.\n\n"
-                "Before continuing:\n"
-                "• Read the full situation description.\n"
-                "• Read each question carefully.\n"
-                "• Base your answers only on what is shown in the scenario and chat.\n\n"
-                "When you are ready, click “Next” to begin."
+                "On the next screen, you will see a chat with the ÖBB service chatbot. "
+                "First, please read the situation below carefully. Then click 'Next' to "
+                "proceed to the chatbot interaction."
             )
         )
         return context
