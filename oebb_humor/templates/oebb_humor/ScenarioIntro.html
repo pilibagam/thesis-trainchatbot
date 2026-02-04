@@ -52,9 +52,15 @@
 {% block content %}
 
 <div class="container page-wrapper">
-    <h3 class="mb-3">Upcoming situation</h3>
 
-    <p>{{ instructions }}</p>
+<h3 class="mb-3">Upcoming situation</h3>
+
+<div class="alert alert-warning attention-box" role="alert" aria-live="polite">
+    <div class="attention-title">Important — please read carefully</div>
+    <div class="attention-text">{{ instructions|linebreaksbr }}</div>
+</div>
+
+    
 
     <div class="scenario-card">
         {# Removed severity label & humor style line #}
