@@ -21,8 +21,18 @@
     <h2 class="mb-3">Study Information &amp; Consent</h2>
 
     <p class="mb-3">
-        {{ info_text }}
+        {{ info_intro }}
     </p>
+
+    <ul class="mb-3">
+        {% for point in info_points %}
+            <li>{{ point }}</li>
+        {% endfor %}
+    </ul>
+
+    <div class="alert alert-light border mb-3" role="note">
+        {{ giveaway_text }}
+    </div>
 
     <div class="mb-3">
         {{ formfields }}

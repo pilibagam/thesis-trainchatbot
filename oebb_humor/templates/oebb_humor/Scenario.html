@@ -73,6 +73,7 @@
         font-size: 0.92rem;
         max-width: 80%;
         line-height: 1.4;
+        white-space: pre-line;
     }
     .bubble-bot {
         background: #ffffff;
@@ -402,7 +403,7 @@
                         "Oh no – seat mix-ups are annoying, especially when you reserved. I see your booking, let’s fix this and keep you on this train. 😊";
 
                     seat_options_intro =
-                        "I can move your reservation to another seat on this train. These options are available:";
+                        "I can move your reservation on this train.\n\nPlease choose one option:";
 
                     seat_pref_intro =
                         "Do you prefer a window or an aisle seat? I’ll try to match that.";
@@ -429,7 +430,7 @@
                     problem_intro =
                         "I’m really sorry – your train from Budapest to Vienna at <strong>13:00</strong> has been cancelled.";
                     rebook_intro =
-                        "I can rebook you today. You can take the <strong>14:00</strong> train (about <strong>4 hours</strong>, arrival around <strong>18:00</strong>) or the <strong>17:00</strong> train (about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>). Or you can arrange it yourself.";
+                        "I can rebook you today.\n\n<strong>14:00</strong> train: about <strong>4 hours</strong>, arrival around <strong>18:00</strong>.\n<strong>17:00</strong> train: about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>.\n\nOr you can arrange it yourself.";
 
                     confirm_14 =
                         "Great, I’ve rebooked you on the <strong>14:00</strong> train from Budapest to Vienna. The journey takes about <strong>4 hours</strong>, so you’ll arrive around <strong>18:00</strong>. Your new connection is now in your ticket. 🚆";
@@ -452,7 +453,7 @@
                     problem_intro =
                         "Looks like my circuits missed this seat clash. That’s on me – but I see your reservation and we’ll keep you on this train.";
                     seat_options_intro =
-                        "I can move your reservation to another seat on this train. Which option works best for you? I’ll try to get it right this time. 🤖";
+                        "I can move your reservation on this train.\n\nWhich option works best for you? I’ll try to get it right this time. 🤖";
 
                     seat_pref_intro =
                         "Quick question: window or aisle? I’ll do my best not to put you in the wrong spot. 🤖";
@@ -479,7 +480,7 @@
                     problem_intro =
                         "Yikes, that cancellation is really bad timing. I’m sorry your train at <strong>13:00</strong> got cancelled.";
                     rebook_intro =
-                        "I can rebook you. There’s a <strong>14:00</strong> train (about <strong>4 hours</strong>, arrival around <strong>18:00</strong>) and a <strong>17:00</strong> train (about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>). Or you can arrange it yourself if you trust humans more than me. 🤖";
+                        "I can rebook you.\n\n<strong>14:00</strong> train: about <strong>4 hours</strong>, arrival around <strong>18:00</strong>.\n<strong>17:00</strong> train: about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>.\n\nOr you can arrange it yourself if you trust humans more than me. 🤖";
 
                     confirm_14 =
                         "All right, you’re now on the <strong>14:00</strong> train. It takes about <strong>4 hours</strong>, so you should reach Vienna around <strong>18:00</strong>. At least this one should show up. 🤖";
@@ -503,15 +504,15 @@
                     problem_intro =
                         "Thank you for the information about your reserved seat.";
                     seat_options_intro =
-                        "I can move your seat reservation to another coach on this train. Please choose one of the following options:";
+                        "I can move your seat reservation to another coach on this train.\n\nPlease choose one option:";
 
                     seat_pref_intro =
                         "Before I confirm the new reservation, please indicate whether you prefer a window seat or an aisle seat.";
 
                     confirm_family_window =
-                        "Your reservation has been moved to a window seat in the family coach: <strong>carriage 23, seat 18A</strong>. This area can be livelier, but you will have a confirmed seat for the rest of your journey. Your new seat has been added to your ticket.";
+                        "Your reservation has been moved to a window seat in the family coach: <strong>carriage 23, seat 18A</strong>.\n\nThis area can be livelier, but your seat is confirmed for the rest of your journey.\nYour new seat has been added to your ticket.";
                     confirm_family_aisle =
-                        "Your reservation has been moved to an aisle seat in the family coach: <strong>carriage 23, seat 18C</strong>. This area can be livelier, but you will have a confirmed seat for the rest of your journey. Your new seat has been added to your ticket.";
+                        "Your reservation has been moved to an aisle seat in the family coach: <strong>carriage 23, seat 18C</strong>.\n\nThis area can be livelier, but your seat is confirmed for the rest of your journey.\nYour new seat has been added to your ticket.";
 
                     confirm_first_window =
                         "Your reservation has been moved to a window seat in first class: <strong>carriage 31, seat 4A</strong>. An upgrade fee will be charged, and your new seat has been added to your ticket.";
@@ -519,7 +520,7 @@
                         "Your reservation has been moved to an aisle seat in first class: <strong>carriage 31, seat 4C</strong>. An upgrade fee will be charged, and your new seat has been added to your ticket.";
 
                     confirm_self_manage =
-                        "In this case I will not change your reservation. You can board this train and choose from the free seats available. The ÖBB app and seat displays show which seats are unoccupied. Staff can assist you if you need help finding a place.";
+                        "In this case I will not change your reservation.\n\nYou can board this train and choose from free seats.\nThe ÖBB app and seat displays show which seats are available.\nStaff can also help you find a place.";
                     closing_positive =
                         "Your seating situation has been updated. We are pleased that a suitable solution was found for you on this train.";
                     closing_negative =
@@ -529,7 +530,7 @@
                     problem_intro =
                         "Thank you for the information about the train cancellation. Your train from Budapest to Vienna at <strong>13:00</strong> has been cancelled.";
                     rebook_intro =
-                        "I can rebook you on another connection today. You may choose the <strong>14:00</strong> train (about <strong>4 hours</strong>, arrival around <strong>18:00</strong>) or the <strong>17:00</strong> train (about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>). You can also arrange the rebooking yourself.";
+                        "I can rebook you on another connection today.\n\n<strong>14:00</strong> train: about <strong>4 hours</strong>, arrival around <strong>18:00</strong>.\n<strong>17:00</strong> train: about <strong>2.5 hours</strong>, arrival around <strong>19:30</strong>.\n\nYou can also arrange the rebooking yourself.";
 
                     confirm_14 =
                         "Your booking has been changed to the <strong>14:00</strong> train from Budapest to Vienna. The trip takes approximately <strong>4 hours</strong>, with arrival around <strong>18:00</strong>. Your new connection is now stored in your ticket.";
@@ -537,7 +538,7 @@
                         "Your booking has been changed to the <strong>17:00</strong> train. The journey takes about <strong>2.5 hours</strong>, with arrival around <strong>19:30</strong>. Your new connection is now stored in your ticket.";
 
                     confirm_self_manage_high =
-                        "In this case I will not change your booking. You can arrange your new connection using the ÖBB app, the ticket counter at the station or assistance from staff.";
+                        "In this case I will not change your booking.\n\nYou can arrange your new connection using:\n- the ÖBB app\n- the ticket counter at the station\n- assistance from staff";
 
                     closing_positive =
                         "Your new booking is confirmed. We apologise again for the disruption and wish you a smooth onward journey.";
