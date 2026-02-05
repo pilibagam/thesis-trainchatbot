@@ -277,12 +277,18 @@ class Consent(Page):
     @staticmethod
     def vars_for_template(player: Player):
         return dict(
-            info_text=(
-                "You are invited to take part in a short online study about digital customer service in rail transport. "
-                "You will be asked to imagine train trips with service disruptions and see responses from the ÖBB service chatbot. "
-                "Your participation is anonymous and voluntary. You can stop at any time by closing the browser. "
-                "Only aggregated data will be analyzed for academic purposes."
-            )
+            info_intro=(
+                "You are invited to take part in a short online study about digital customer service in rail transport."
+            ),
+            info_points=[
+                "You will imagine train trips with service disruptions and see responses from the ÖBB service chatbot.",
+                "Your participation is anonymous and voluntary.",
+                "You can stop at any time by closing your browser.",
+                "Only aggregated data will be analyzed for academic purposes.",
+            ],
+            giveaway_text=(
+                "At the end of the study, you can optionally participate in a giveaway for a 50 EUR Amazon gift card."
+            ),
         )
 
     @staticmethod
@@ -339,7 +345,7 @@ class Scenario(Page):
                 "You are travelling from Vienna to Budapest. When you board your train and reach your reserved seat, "
                 "you find that someone is already sitting there. It appears that the seat has been double-booked. "
                 "The train seems quite full, but the ÖBB app suggests contacting the ÖBB service chatbot for help "
-                "with your seating situation."
+                "with your seating situation. ÖBB is Austria’s national rail operator (Austrian Federal Railways)."
             )
             header_title = "ÖBB Assist – Seat Issue Support"
             severity_label = "Low-severity: seat double booking"
@@ -348,7 +354,7 @@ class Scenario(Page):
                 "You are travelling from Budapest to Vienna. Shortly before your departure, you receive a "
                 "notification in the ÖBB app that your train has been cancelled due to operational issues. "
                 "The next available train departs in about one hour. You contact the ÖBB service chatbot to "
-                "find out how to continue your journey."
+                "find out how to continue your journey. ÖBB is Austria’s national rail operator (Austrian Federal Railways)."
             )
             header_title = "ÖBB Assist – Train Disruption Support"
             severity_label = "High-severity: train cancellation"
@@ -361,6 +367,8 @@ class Scenario(Page):
             severity_key=player.scenario_severity,
             humor_key=player.humor_style,
             reservation_number=reservation_number,
+            scenario_number=player.round_number,
+            total_scenarios=C.NUM_ROUNDS,
         )
 
 
@@ -372,11 +380,11 @@ class ScenarioRatings(Page):
         'satisfaction',
         'competence',
         'warmth',
+        'attention_check_item',
         'anthropomorphism',
         'reuse',
         'severity_check',
         'humor_check',
-        'attention_check_item',
     ]
 
     @staticmethod
@@ -487,4 +495,3 @@ page_sequence = [
     Debrief,
     Raffle,
 ]
-
