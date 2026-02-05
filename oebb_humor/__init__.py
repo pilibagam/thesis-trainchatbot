@@ -277,12 +277,18 @@ class Consent(Page):
     @staticmethod
     def vars_for_template(player: Player):
         return dict(
-            info_text=(
-                "You are invited to take part in a short online study about digital customer service in rail transport. "
-                "You will be asked to imagine train trips with service disruptions and see responses from the ÖBB service chatbot. "
-                "Your participation is anonymous and voluntary. You can stop at any time by closing the browser. "
-                "Only aggregated data will be analyzed for academic purposes."
-            )
+            info_intro=(
+                "You are invited to take part in a short online study about digital customer service in rail transport."
+            ),
+            info_points=[
+                "You will imagine train trips with service disruptions and see responses from the ÖBB service chatbot.",
+                "Your participation is anonymous and voluntary.",
+                "You can stop at any time by closing your browser.",
+                "Only aggregated data will be analyzed for academic purposes.",
+            ],
+            giveaway_text=(
+                "At the end of the study, you can optionally participate in a giveaway for a 50 EUR Amazon gift card."
+            ),
         )
 
     @staticmethod
@@ -487,4 +493,3 @@ page_sequence = [
     Debrief,
     Raffle,
 ]
-
