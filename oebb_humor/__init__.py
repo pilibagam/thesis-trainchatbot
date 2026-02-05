@@ -372,11 +372,11 @@ class ScenarioRatings(Page):
         'satisfaction',
         'competence',
         'warmth',
+        'attention_check_item',
         'anthropomorphism',
         'reuse',
         'severity_check',
         'humor_check',
-        'attention_check_item',
     ]
 
     @staticmethod
